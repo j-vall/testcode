@@ -1,0 +1,62 @@
+################
+# Extract Data
+################
+
+require(tm)
+require(RWeka)
+
+# load the data 
+setwd("C:/Users/George/Desktop/Capstone/final/en_US/blogonly")
+blog<-readLines("en_US.blogs.txt")
+
+# split in files
+
+for (i in 1:10 ) {
+  b1<-blog[10000*(i-1)+1:10000*i]
+  writeLines(b1,"b1/b1.txt")
+
+  # clean and create corpus b1
+  b1 <- gsub(',[])(;:#%$^\\~{}[&+=@/"<>_]+“”', "", b1)
+  blog.corpus  <- Corpus(DirSource("./b1", encoding = "UTF-8"), readerControl=list(reader=readPlain))
+  
+  # ngram and Term document matrix
+  TrigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+  tdm <- TermDocumentMatrix(blog.corpus, control = list(tokenize = TrigramTokenizer))
+  
+  # convert tdm to table and save to disk as csv
+  tdmtable<-as.table(tdm)
+  colnames(tdmtable)<-"Frequency"
+  write.csv(tdmtable, file=paste("blog",i,".csv", sep=""))
+}
+
+# clear up memory
+rm(b1,blog,blog.corpus)
+rm(tdm, tdmatable)
+
+################
+# merge
+################
+
+# read initial trigram
+trigrams<-read.csv("blog1.csv")
+# select only trigrams with multiple occurrences
+trigrams<-subset(trigrams,Frequency>1)
+
+# loop the rest of the files and append trigrams with multiple occurrences
+for (i in 2:10 ) {
+  x<-read.csv(paste("blog",i,".csv",sep=""))
+  x<-subset(x,Frequency>1)           
+  trigrams<-rbind(trigrams,x)
+}
+
+###############
+# summarise
+###############
+
+require(data.table)
+DT <- data.table(trigrams)
+final.table<-DT[, sum(Frequency), by = X]
+
+# save final table
+write.csv(final.table, "FinalTable.csv")
+
